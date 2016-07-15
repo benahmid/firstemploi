@@ -3,52 +3,35 @@ package com.emploi.controllers;
 
 import java.io.File;
 import java.io.FileInputStream;
-
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-
 import java.util.Iterator;
-
 import java.util.ListIterator;
 import java.util.Map;
-
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
-
-
-
-
-
-
-
 import org.apache.poi.ss.usermodel.Row;
-
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-
 import org.openqa.selenium.phantomjs.PhantomJSDriver;
 
-
-
-
-
 import javax.mail.MessagingException;
-
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+
+import com.google.common.io.Files;
 
 
 
@@ -93,9 +76,7 @@ public class IndexController {
 	
     @RequestMapping("/")
 	public String index() throws MessagingException {
-    	
-    	
-		return "indexAuthentification";
+          return "indexAuthentification";
 	}
 	
 	
@@ -115,14 +96,14 @@ return "index";
 	
 	@RequestMapping(value="/afficher", method=RequestMethod.POST)
 	
-	public String afficher(@ModelAttribute("fichier") String fichier,@ModelAttribute("email") String email, @ModelAttribute("DemandeOffre") String DemandeOffre,@ModelAttribute("ville") String ville,@ModelAttribute("de") int de,@ModelAttribute("A") int a , @ModelAttribute("pic") String pathOfExcel) throws IOException {
+	public String afficher(@ModelAttribute("fichier") String fichier,@ModelAttribute("email") String email,@ModelAttribute("objet") String objet,@ModelAttribute("description") String description, @ModelAttribute("DemandeOffre") String DemandeOffre,@ModelAttribute("ville") String ville,@ModelAttribute("de") int de,@ModelAttribute("A") int a , @ModelAttribute("pic") String pathOfExcel) throws IOException {
 		
 		
 		if(DemandeOffre.equalsIgnoreCase("demandeEmploi")){
-			run(de, a,ville , fichier, email);
+			run(de, a,ville , fichier, email, objet, description);
 		}
 		else{
-			runOffre(de, a);
+			runOffre(de, a, fichier, email, objet, description);
 		}
 	   //return DemandeOffre +" : " + ville+" : "+ de+" : "+ a;
 		return "index";
@@ -131,9 +112,10 @@ return "index";
 	
 	
 	
-public void run(int min , int ila, String ville, String fichier, String lemail) throws IOException {
+public void run(int min , int ila, String ville, String fichier, String lemail, String objet, String description) throws IOException {
 	File f=new File(fichier+".xlsx");
-	
+	//File f=new File("Demande.xlsx");
+
 		try {
 			
 			inialiserMetier();
@@ -146,10 +128,17 @@ public void run(int min , int ila, String ville, String fichier, String lemail) 
 		 String villeActuelle=ville;
 		
 		 
-		   // File src=new File(pathOfExcel);
-		   // FileInputStream fis = new FileInputStream(src);
-			XSSFWorkbook wb = new XSSFWorkbook(); 
-			XSSFSheet sheet1 = wb.createSheet("Chercheurs d'Emploi");
+		    File src=new File("Demande.xlsx");
+		    Files.copy(src, f);
+		    
+			FileInputStream fis = new FileInputStream(f);
+			XSSFWorkbook wb = new XSSFWorkbook(fis);
+			//SXSSFWorkbook wb = new SXSSFWorkbook();
+			XSSFSheet sheet1 = wb.getSheetAt(0);
+			
+			
+			
+			//XSSFSheet sheet1 = wb.createSheet("Chercheurs d'Emploi");
 			//XSSFWorkbook wb = new XSSFWorkbook(fis);
 			//SXSSFWorkbook wb = new SXSSFWorkbook();
 			//XSSFSheet sheet1 = wb.getSheetAt(0);
@@ -342,26 +331,19 @@ public void run(int min , int ila, String ville, String fichier, String lemail) 
 				   String [] infoContrat = infor3.split(" - ");
 				 
 				   row.createCell(77).setCellValue("oui");
-				 
-				  
-				   
+
 						 for(String s : infoGeographique){
 						 mapMobiliteGeorgraphique.put(s, "oui");
 						// int  idVille = mbltgDao.findAll().indexOf(s) + 1;
 						int  idVille = listMobiliteGeographique.indexOf(s)+1;
 					
 					   }
-				  
 						  affecterMobiliteGeoExcel(row, 78);
-				   
-				   
 				   //informations Contrats
 				   row.createCell(89).setCellValue("oui");
 				   for(String s : infoContrat){
 			          mapContrat.put(s, "oui");
 			          int idContrat =listContrat.indexOf(s)+1;
-						
-			       
 				   }
 				   affecterContratExcel(row, 90); 
 				   
@@ -450,7 +432,7 @@ public void run(int min , int ila, String ville, String fichier, String lemail) 
 	        listLangues.clear();
 	        listContrat.clear();  
 	        
-	    smtpMailSender.send(lemail, "Test mail", "mazyann", f);    
+	    smtpMailSender.send(lemail, objet, description, f);    
 	       
 		} catch (Exception e) {
 			
@@ -483,7 +465,8 @@ public void run(int min , int ila, String ville, String fichier, String lemail) 
 
 
 
-public void runOffre(int min , int ila) throws IOException {
+public void runOffre(int min , int ila, String fichier, String lemail, String objet, String description) throws IOException {
+	File f=new File(fichier+".xlsx");
 	
 	try {	
 	//initialiser tous les listes
@@ -494,10 +477,15 @@ public void runOffre(int min , int ila) throws IOException {
 	initialiserMapMobiliteGeo();
 	
 	
-	File src=new File("C:\\Users\\BEN AHMID Soufiane\\Documents\\PFE de 2016\\DB_Offre_Emploi.xlsx");
-	FileInputStream fis = new FileInputStream(src);
+	File src=new File("Offre.xlsx");
+	
+	Files.copy(src, f);
+    
+	FileInputStream fis = new FileInputStream(f);
 	XSSFWorkbook wb = new XSSFWorkbook(fis);
+	//SXSSFWorkbook wb = new SXSSFWorkbook();
 	XSSFSheet sheet1 = wb.getSheetAt(0);
+	
 	int indiceLigne = sheet1.getLastRowNum();
 	/*
 	int jr=sheet1.getRow(indiceLigne).getCell(2).getDateCellValue().getDay();
@@ -726,9 +714,11 @@ public void runOffre(int min , int ila) throws IOException {
 		affecterMetierExcel(rowOffre, 33);
 		affecterMobiliteGeoExcel(rowOffre, 4);
 		
-		
-		    FileOutputStream fout = new FileOutputStream(src);
-	        wb.write(fout);	
+		 FileOutputStream out = new FileOutputStream(f);
+	        
+         wb.write(out);
+         out.close();
+
 	        mapContrat.clear();
 	        mapExperiences.clear();
 	        mapLangues.clear();
@@ -751,6 +741,8 @@ public void runOffre(int min , int ila) throws IOException {
         listLangues.clear();
         listContrat.clear();  
        
+    smtpMailSender.send(lemail, objet, description, f);    
+        
 	} catch (Exception e) {
 		
 		e.printStackTrace();
