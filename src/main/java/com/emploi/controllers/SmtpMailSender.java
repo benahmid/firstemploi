@@ -24,7 +24,8 @@ public void send(String to, String subject, String body, File file ) throws Mess
 	helper = new MimeMessageHelper(message, true);
 	helper.setSubject(subject);
 	helper.setTo(to);
-	helper.setText(body, true);
+	helper.setText(body);
+	
 	helper.addAttachment(file.getName(), file);
 	
 	javaMailsender.send(message);
